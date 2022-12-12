@@ -2,7 +2,9 @@ const connection = require("./db-config");
 const express = require("express");
 const app = express();
 
-const port = process.env.PORT ?? 3000;
+const { hashPassword } = require("./auth.js");
+
+const port = process.env.PORT ?? 5001;
 
 connection.connect((err) => {
   if (err) {
@@ -83,7 +85,7 @@ app.get("/api/users", (req, res) => {
 app.get("/api/users/:id", (req, res) => {
   const userId = req.params.id;
   connection.query(
-    "SELECT * FROM users WHERE id = ?",
+    "SELECT firstname,lastname,email,city,language FROM users WHERE id = ?",
     [userId],
     (err, result) => {
       if (err) {
@@ -114,11 +116,11 @@ app.post("/api/movies", (req, res) => {
   );
 });
 
-app.post("/api/users", (req, res) => {
-  const { firstname, lastname, email } = req.body;
+app.post("/api/users", hashPassword, (req, res) => {
+  const { firstname, lastname, email, hashedPassword } = req.body;
   connection.query(
-    "INSERT INTO users (firstname, lastname, email) VALUES (?, ?, ?)",
-    [firstname, lastname, email],
+    "INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)",
+    [firstname, lastname, email, hashedPassword],
     (err, result) => {
       if (err) {
         console.error(err);
