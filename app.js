@@ -1,8 +1,9 @@
 const connection = require("./db-config");
 const express = require("express");
 const app = express();
-
-const { hashPassword } = require("./auth.js");
+const userHandlers = require("./userHandlers");
+const { hashPassword, verifyPassword, verifyToken } = require("./auth.js");
+const argon2 = require("argon2");
 
 const port = process.env.PORT ?? 5001;
 
@@ -100,7 +101,31 @@ app.get("/api/users/:id", (req, res) => {
   );
 });
 
-app.post("/api/movies", (req, res) => {
+app.post("/api/users", hashPassword, (req, res) => {
+  const { firstname, lastname, email, hashedPassword } = req.body;
+  connection.query(
+    "INSERT INTO users (firstname, lastname, email, hashedPassword) VALUES (?, ?, ?, ?)",
+    [firstname, lastname, email, hashedPassword],
+    (err, result) => {
+      if (err) {
+        console.error(err);
+        res.status(500).send("Error saving the user");
+      } else {
+        res.status(200).send("User successfully saved");
+      }
+    }
+  );
+});
+
+app.post(
+  "/api/login",
+  userHandlers.getUserByEmailWithPasswordAndPassToNext,
+  verifyPassword
+);
+
+app.use(verifyToken);
+
+app.post("/api/movies", verifyToken, (req, res) => {
   const { title, director, year, color, duration } = req.body;
   connection.query(
     "INSERT INTO movies (title, director, year, color, duration) VALUES (?, ?, ?, ?, ?)",
@@ -111,22 +136,6 @@ app.post("/api/movies", (req, res) => {
         res.status(500).send("Error saving the movie");
       } else {
         res.status(200).send("Movie successfully saved");
-      }
-    }
-  );
-});
-
-app.post("/api/users", hashPassword, (req, res) => {
-  const { firstname, lastname, email, hashedPassword } = req.body;
-  connection.query(
-    "INSERT INTO users (firstname, lastname, email, password) VALUES (?, ?, ?, ?)",
-    [firstname, lastname, email, hashedPassword],
-    (err, result) => {
-      if (err) {
-        console.error(err);
-        res.status(500).send("Error saving the user");
-      } else {
-        res.status(200).send("User successfully saved");
       }
     }
   );
